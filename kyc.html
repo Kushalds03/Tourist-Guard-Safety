@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <title>Tourist KYC Platform</title>
+    <script src="https://cdn.jsdelivr.net/gh/ethereum/web3.js/dist/web3.min.js"></script>
+    <style>
+        /* Reset and base */
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            background: #f4f7fa;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            color: #333;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+        }
+
+        .container {
+            background: white;
+            max-width: 480px;
+            width: 100%;
+            padding: 30px 40px;
+            border-radius: 10px;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        h2 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 0;
+            font-weight: 700;
+        }
+
+        label {
+            font-weight: 600;
+            margin-bottom: 6px;
+            display: block;
+            color: #444;
+        }
+
+        input[type="text"],
+        input[type="file"] {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1.8px solid #d1d9e6;
+            border-radius: 6px;
+            font-size: 1rem;
+            transition: border-color 0.3s ease;
+        }
+
+        input[type="text"]:focus,
+        input[type="file"]:focus {
+            outline: none;
+            border-color: #4a90e2;
+            box-shadow: 0 0 5px rgba(74, 144, 226, 0.5);
+        }
+
+        button {
+            cursor: pointer;
+            background: #4a90e2;
+            color: white;
+            border: none;
+            padding: 12px 18px;
+            font-size: 1rem;
+            border-radius: 6px;
+            font-weight: 600;
+            transition: background 0.3s ease;
+            flex: 1;
+            margin: 4px 8px 4px 0;
+        }
+
+        button:hover {
+            background: #357ABD;
+        }
+
+        .btn-group {
+            display: flex;
+            justify-content: space-between;
+            gap: 8px;
+        }
+
+        #status {
+            text-align: center;
+            font-weight: 600;
+            color: #2980b9;
+            min-height: 24px;
+            margin-top: 12px;
+        }
+
+        #customerInfo {
+            background: #eef6fc;
+            border-radius: 8px;
+            padding: 16px;
+            font-size: 0.95rem;
+            color: #34495e;
+            box-shadow: inset 0 0 5px rgba(52, 73, 94, 0.1);
+            margin-top: 8px;
+            line-height: 1.4;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Tourist KYC Submission</h2>
+        
+        <label for="customerAddress">Customer Address (Wallet):</label>
+        <input type="text" id="customerAddress" placeholder="0x..." />
+         
+        <label for="customerName">Customer Name:</label>
+        <input type="text" id="customerName" />
+         
+        <label for="document">Upload Document (Aadhaar/Passport):</label>
+        <input type="file" id="document" />
+         
+        <div class="btn-group">
+            <button onclick="addCustomer()" title="Add Customer">Submit KYC</button>
+            <button onclick="verifyCustomer()" title="Verify Customer">Verify Customer</button>
+            <button onclick="getCustomer()" title="Get Customer Info">Get Customer Info</button>
+        </div>
+         
+        <h3 id="status"></h3>
+        <div id="customerInfo"></div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <script>
+    let web3;
+    let contract;
+    let accounts;
+
+    const contractAddress = "0xYourDeployedContractAddress";
+
+    const contractABI = [
+        {
+          "inputs": [],
+          "stateMutability": "nonpayable",
+          "type": "constructor"
+        },
+        {
+          "inputs": [],
+          "name": "admin",
+          "outputs": [{"internalType":"address","name":"","type":"address"}],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs":[{"internalType":"address","name":"customerAddress","type":"address"}],
+          "name":"getCustomer",
+          "outputs":[
+            {"internalType":"string","name":"","type":"string"},
+            {"internalType":"string","name":"","type":"string"},
+            {"internalType":"bool","name":"","type":"bool"}
+          ],
+          "stateMutability":"view",
+          "type":"function"
+        },
+        {
+          "inputs":[
+            {"internalType":"address","name":"customerAddress","type":"address"},
+            {"internalType":"string","name":"name","type":"string"},
+            {"internalType":"string","name":"dataHash","type":"string"}
+          ],
+          "name":"addCustomer",
+          "outputs":[],
+          "stateMutability":"nonpayable",
+          "type":"function"
+        },
+        {
+          "inputs":[{"internalType":"address","name":"customerAddress","type":"address"}],
+          "name":"verifyCustomer",
+          "outputs":[],
+          "stateMutability":"nonpayable",
+          "type":"function"
+        }
+    ];
+
+    async function init() {
+        if (window.ethereum) {
+            web3 = new Web3(window.ethereum);
+            accounts = await ethereum.request({ method: 'eth_requestAccounts' });
+            contract = new web3.eth.Contract(contractABI, contractAddress);
+            console.log("Web3 and contract initialized");
+        } else {
+            alert("Please install MetaMask!");
+        }
+    }
+
+    function hashFile(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = function() {
+                const wordArray = CryptoJS.lib.WordArray.create(reader.result);
+                const hash = CryptoJS.SHA256(wordArray).toString();
+                resolve(hash);
+            };
+            reader.onerror = reject;
+            reader.readAsArrayBuffer(file);
+        });
+    }
+
+    async function addCustomer() {
+        const address = document.getElementById("customerAddress").value.trim();
+        const name = document.getElementById("customerName").value.trim();
+        const file = document.getElementById("document").files[0];
+
+        if (!address || !name || !file) {
+            alert("Please fill all fields and upload document");
+            return;
+        }
+
+        document.getElementById("status").innerText = "Hashing document...";
+        const hash = await hashFile(file);
+        console.log("Document hash:", hash);
+
+        document.getElementById("status").innerText = "Sending transaction...";
+        try {
+            await contract.methods.addCustomer(address, name, hash).send({ from: accounts[0] });
+            document.getElementById("status").innerText = "Customer added successfully!";
+        } catch (err) {
+            console.error(err);
+            document.getElementById("status").innerText = "Error adding customer. Check console.";
+        }
+    }
+
+    async function verifyCustomer() {
+        const address = document.getElementById("customerAddress").value.trim();
+        if (!address) return alert("Enter customer address");
+
+        try {
+            await contract.methods.verifyCustomer(address).send({ from: accounts[0] });
+            document.getElementById("status").innerText = "Customer verified!";
+        } catch (err) {
+            console.error(err);
+            document.getElementById("status").innerText = "Error verifying customer";
+        }
+    }
+
+    async function getCustomer() {
+        const address = document.getElementById("customerAddress").value.trim();
+        if (!address) return alert("Enter customer address");
+
+        try {
+            const result = await contract.methods.getCustomer(address).call();
+            const [name, dataHash, isVerified] = result;
+            document.getElementById("customerInfo").innerHTML = `
+                <p><b>Name:</b> ${name}</p>
+                <p><b>Document Hash:</b> ${dataHash}</p>
+                <p><b>Verified:</b> ${isVerified}</p>
+            `;
+        } catch (err) {
+            console.error(err);
+            document.getElementById("status").innerText = "Error fetching customer info";
+        }
+    }
+
+    window.addEventListener('load', init);
+    </script>
+</body>
+</html>

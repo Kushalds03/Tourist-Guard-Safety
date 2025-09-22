@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TouristGuard - Smart Mobile App</title>
+    <style>
+        /* --- Universal Setup & Fonts --- */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+        
+        :root {
+            --primary-blue: #217cfd;
+            --light-blue: #e7f1ff;
+            --dark-blue: #0c3a81;
+            --safe-green: #25c76e;
+            --alert-red: #ff4d4d;
+            --warning-orange: #ffb047;
+            --background-grey: #f4f7fa;
+            --text-dark: #212529;
+            --text-light: #6c757d;
+            --card-border: #e9ecef;
+            --card-shadow: 0 8px 30px rgba(0, 0, 0, 0.06);
+        }
+
+        body {
+            margin: 0;
+            font-family: 'Inter', sans-serif;
+            background-color: var(--background-grey);
+            color: var(--text-dark);
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        /* --- NEW: Choice Screen Container --- */
+        .choice-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            min-height: 100vh;
+            padding: 20px;
+            box-sizing: border-box;
+            background-color: #fff;
+        }
+        .choice-logo {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, #1ec9fd, #217cfd);
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 25px;
+            box-shadow: 0 10px 20px rgba(33, 124, 253, 0.2);
+        }
+        .choice-logo svg {
+            width: 40px;
+            height: 40px;
+            fill: #fff;
+        }
+        .choice-container h1 {
+            font-size: 1.8rem;
+            color: var(--text-dark);
+            margin-bottom: 10px;
+        }
+        .choice-container p {
+            max-width: 350px;
+            color: var(--text-light);
+            line-height: 1.6;
+            margin-bottom: 30px;
+        }
+        .choice-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            width: 100%;
+            max-width: 300px;
+        }
+        .choice-btn {
+            padding: 15px 20px;
+            border-radius: 14px;
+            font-size: 1rem;
+            font-weight: 600;
+            border: none;
+            cursor: pointer;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            transition: transform 0.2s;
+        }
+        .choice-btn:active {
+            transform: scale(0.98);
+        }
+        .install-btn {
+            background-color: var(--text-dark);
+            color: #fff;
+        }
+        .webapp-btn {
+            background-color: var(--light-blue);
+            color: var(--primary-blue);
+        }
+        
+        .hidden {
+            display: none !important;
+        }
+
+        /* --- Main App Container --- */
+        .app-container {
+            max-width: 450px;
+            min-height: 100vh;
+            margin: auto;
+            background-color: #ffffff;
+            box-shadow: 0 0 40px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* --- App Header --- */
+        .app-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 25px;
+            background-color: #ffffff;
+            border-bottom: 1px solid var(--card-border);
+        }
+        .header-title {
+            font-size: 1.4rem;
+            font-weight: 800;
+            color: var(--primary-blue);
+        }
+        .header-actions {
+            display: flex;
+            gap: 20px;
+        }
+        .header-actions svg {
+            width: 26px;
+            height: 26px;
+            color: var(--text-light);
+            cursor: pointer;
+        }
+
+        /* --- Main Content --- */
+        .main-content {
+            flex-grow: 1;
+            padding: 25px;
+            overflow-y: auto;
+        }
+
+        .section-title {
+            font-size: 1.2rem;
+            font-weight: 700;
+            margin-bottom: 15px;
+            color: var(--text-dark);
+        }
+
+        /* --- Safety Score --- */
+        .safety-score-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 30px;
+        }
+        .safety-score-circle {
+            width: 180px;
+            height: 180px;
+            position: relative;
+        }
+        .safety-score-circle svg {
+            width: 100%;
+            height: 100%;
+            transform: rotate(-90deg);
+        }
+        .progress-bg {
+            fill: none;
+            stroke: var(--light-blue);
+            stroke-width: 12;
+        }
+        .progress-bar {
+            fill: none;
+            stroke: var(--primary-blue);
+            stroke-width: 12;
+            stroke-linecap: round;
+            stroke-dasharray: 472; /* 2 * PI * radius (75) */
+            stroke-dashoffset: 472;
+            transition: stroke-dashoffset 1s ease-out;
+        }
+        .safety-score-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+        }
+        .score {
+            font-size: 2.8rem;
+            font-weight: 800;
+            color: var(--dark-blue);
+        }
+        .score-label {
+            font-size: 0.9rem;
+            color: var(--text-light);
+            margin-top: -5px;
+        }
+
+        /* --- Panic Button --- */
+        .panic-button-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+        .sos-button {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            background: var(--alert-red);
+            border: none;
+            color: white;
+            font-size: 1.8rem;
+            font-weight: 700;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            box-shadow: 0 5px 15px rgba(255, 77, 77, 0.4);
+            transition: transform 0.1s;
+        }
+        .sos-button:active {
+            transform: scale(0.95);
+        }
+        .sos-hold-indicator {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            border-radius: 50%;
+            border: 4px solid white;
+            transform: scale(1);
+            opacity: 0;
+            transition: all 0.3s;
+        }
+        .sos-button.holding .sos-hold-indicator {
+            transform: scale(1.4);
+            opacity: 1;
+        }
+
+        /* --- Feature Cards --- */
+        .feature-card {
+            background-color: #ffffff;
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 15px;
+            box-shadow: var(--card-shadow);
+        }
+        .feature-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .feature-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #ffffff;
+        }
+        .feature-icon.geo-fence { background: linear-gradient(135deg, #1ec9fd, #217cfd); }
+        .feature-icon.tracking { background: linear-gradient(135deg, #ffb047, #ff8a2d); }
+        .feature-icon.location { background: linear-gradient(135deg, #25c76e, #1ca958); }
+        .feature-icon svg {
+            width: 24px;
+            height: 24px;
+        }
+        .feature-text h4 {
+            margin: 0 0 4px 0;
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text-dark);
+        }
+        .feature-text p {
+            margin: 0;
+            font-size: 0.85rem;
+            color: var(--text-light);
+        }
+
+        /* --- Toggle Switch --- */
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 28px;
+        }
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 34px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 20px;
+            width: 20px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .slider {
+            background-color: var(--primary-blue);
+        }
+        input:checked + .slider:before {
+            transform: translateX(22px);
+        }
+        
+        /* --- Family Tracking Profiles --- */
+        .family-profiles {
+            display: flex;
+            gap: 15px;
+        }
+        .profile {
+            text-align: center;
+        }
+        .profile img {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            border: 3px solid var(--safe-green);
+            object-fit: cover;
+        }
+        .profile span {
+            display: block;
+            font-size: 0.8rem;
+            margin-top: 5px;
+            font-weight: 500;
+        }
+
+        /* --- Bottom Navigation --- */
+        .bottom-nav {
+            display: flex;
+            justify-content: space-around;
+            padding: 15px 0;
+            background-color: #ffffff;
+            border-top: 1px solid var(--card-border);
+            box-shadow: 0 -5px 20px rgba(0,0,0,0.05);
+        }
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            color: var(--text-light);
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+        .nav-item svg {
+            width: 24px;
+            height: 24px;
+        }
+        .nav-item span {
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+        .nav-item.active, .nav-item:hover {
+            color: var(--primary-blue);
+        }
+        
+        /* --- Alert Message Box --- */
+        .alert-modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0; top: 0;
+            width: 100%; height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            align-items: center;
+            justify-content: center;
+        }
+        .alert-content {
+            background: white;
+            padding: 30px 40px;
+            border-radius: 16px;
+            text-align: center;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            max-width: 300px;
+        }
+        .alert-content h3 {
+            margin-top: 0;
+            color: var(--alert-red);
+        }
+        .alert-content p {
+            color: var(--text-light);
+        }
+        .alert-button {
+            border: none;
+            border-radius: 12px;
+            font-weight: 600;
+            padding: 12px 24px;
+            cursor: pointer;
+            font-size: 1rem;
+            margin-top: 10px;
+            background-color: var(--primary-blue);
+            color: white;
+        }
+
+    </style>
+</head>
+<body>
+
+    <!-- NEW: Choice Screen -->
+    <div id="choiceContainer" class="choice-container">
+        <div class="choice-logo">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 0L0 6v6c0 5.25 3.5 10 8.5 11s7.5 0 7.5 0c5-1 8.5-5.75 8.5-11v-6l-12-6z"></path></svg>
+        </div>
+        <h1>Welcome to TouristGuard</h1>
+        <p>For the best experience and real-time safety features, please install our mobile app. You can also continue using the web version.</p>
+        <div class="choice-buttons">
+            <a href="#" class="choice-btn install-btn">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                Install App
+            </a>
+            <button id="useWebAppBtn" class="choice-btn webapp-btn">Continue to Web App</button>
+        </div>
+    </div>
+
+    <!-- Main App Interface (Initially hidden) -->
+    <div id="appContainer" class="app-container hidden">
+        <!-- App Header -->
+        <header class="app-header">
+            <h1 class="header-title">TouristGuard</h1>
+            <div class="header-actions">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 22C12.5523 22 13 21.5523 13 21H11C11 21.5523 11.4477 22 12 22ZM19 19V12.643C19 10.0328 17.7981 7.73713 15.6569 6.54117L15 6.222V4C15 2.89543 14.1046 2 13 2H11C9.89543 2 9 2.89543 9 4V6.222L8.34315 6.54117C6.20188 7.73713 5 10.0328 5 12.643V19H7L8 20H16L17 19H19Z"></path></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C17.52 2 22 6.48 22 12C22 17.52 17.52 22 12 22C6.48 22 2 17.52 2 12C2 6.48 6.48 2 12 2ZM12 4C10.6739 4 9.40215 4.52678 8.46447 5.46447C7.52678 6.40215 7 7.67392 7 9C7 10.3261 7.52678 11.5979 8.46447 12.5355C9.40215 13.4732 10.6739 14 12 14C13.3261 14 14.5979 13.4732 15.5355 12.5355C16.4732 11.5979 17 10.3261 17 9C17 7.67392 16.4732 6.40215 15.5355 5.46447C14.5979 4.52678 13.3261 4 12 4ZM12 16C9.33 16 4 17.34 4 20V20.4C4.0535 20.7208 4.3323 20.9631 4.653 20.92C7.03058 20.6186 9.48834 20.468 12 20.468C14.5117 20.468 16.9694 20.6186 19.347 20.92C19.6677 20.9631 19.9465 20.7208 20 20.4V20C20 17.34 14.67 16 12 16Z"></path></svg>
+            </div>
+        </header>
+
+        <!-- Main Content Scroll Area -->
+        <main class="main-content">
+            <!-- Safety Score Section -->
+            <div class="safety-score-container">
+                <div class="safety-score-circle">
+                    <svg>
+                        <circle class="progress-bg" cx="90" cy="90" r="75"></circle>
+                        <circle id="progressBar" class="progress-bar" cx="90" cy="90" r="75"></circle>
+                    </svg>
+                    <div class="safety-score-text">
+                        <span id="scoreValue" class="score">95</span>
+                        <span class="score-label">Safety Score</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Panic Button Section -->
+            <div class="panic-button-container">
+                <button id="sosButton" class="sos-button">
+                    SOS
+                    <div class="sos-hold-indicator"></div>
+                </button>
+            </div>
+
+            <!-- Features Section -->
+            <h2 class="section-title">Safety Controls</h2>
+
+            <div class="feature-card">
+                <div class="feature-info">
+                    <div class="feature-icon geo-fence">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 1C7.58172 1 4 4.58172 4 9C4 14.0811 11.1895 22.115 11.5831 22.5818C11.8333 22.8841 12.1667 22.8841 12.4169 22.5818C12.8105 22.115 20 14.0811 20 9C20 4.58172 16.4183 1 12 1ZM12 12C10.3431 12 9 10.6569 9 9C9 7.34315 10.3431 6 12 6C13.6569 6 15 7.34315 15 9C15 10.6569 13.6569 12 12 12Z"></path></svg>
+                    </div>
+                    <div class="feature-text">
+                        <h4>Geo-Fencing Alerts</h4>
+                        <p id="geoFenceStatus">Enabled - Inside Safe Zone</p>
+                    </div>
+                </div>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="geoFenceToggle" checked>
+                    <span class="slider"></span>
+                </label>
+            </div>
+            
+            <div class="feature-card">
+                <div class="feature-info">
+                    <div class="feature-icon location">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 18.25C11.5858 18.25 11.25 17.9142 11.25 17.5V12.25H6C5.58579 12.25 5.25 11.9142 5.25 11.5C5.25 11.0858 5.58579 10.75 6 10.75H11.25V5.5C11.25 5.08579 11.5858 4.75 12 4.75C12.4142 4.75 12.75 5.08579 12.75 5.5V10.75H18C18.4142 10.75 18.75 11.0858 18.75 11.5C18.75 11.9142 18.4142 12.25 18 12.25H12.75V17.5C12.75 17.9142 12.4142 18.25 12 18.25Z"></path></svg>
+                    </div>
+                    <div class="feature-text">
+                        <h4>Current Location</h4>
+                        <p>Bengaluru, Karnataka</p>
+                    </div>
+                </div>
+            </div>
+
+            <h2 class="section-title">Family Tracking</h2>
+            
+            <div class="feature-card">
+                <div class="feature-info">
+                   <div class="family-profiles">
+                       <div class="profile">
+                           <img src="https://images.unsplash.com/photo-1554151228-14d9def656e4?q=80&w=200&auto=format&fit=crop" alt="Family Member">
+                           <span>Maria</span>
+                       </div>
+                       <div class="profile">
+                           <img src="https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=200&auto=format&fit=crop" alt="Family Member">
+                           <span>John</span>
+                       </div>
+                   </div>
+                </div>
+                 <button class="alert-button" style="padding: 8px 16px; font-size: 0.9rem; margin: 0;">Manage</button>
+            </div>
+
+        </main>
+
+        <!-- Bottom Navigation -->
+        <nav class="bottom-nav">
+            <div class="nav-item active" id="nav-home">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M21 20C21 20.5523 20.5523 21 20 21H4C3.44772 21 3 20.5523 3 20V11L11.3273 4.21381C11.7087 3.88339 12.2913 3.88339 12.6727 4.21381L21 11V20Z"></path></svg>
+                <span>Home</span>
+            </div>
+            <div class="nav-item" id="nav-map">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 20.8995L18.364 14.5355L19.7782 15.9497L12 23.7279L4.22183 15.9497L5.63604 14.5355L12 20.8995ZM12 2.27208L19.7782 10.0503L18.364 11.4645L12 5.10051L5.63604 11.4645L4.22183 10.0503L12 2.27208Z"></path></svg>
+                <span>Map</span>
+            </div>
+            <div class="nav-item" id="nav-alerts">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 22C12.5523 22 13 21.5523 13 21H11C11 21.5523 11.4477 22 12 22ZM19 19V12.643C19 10.0328 17.7981 7.73713 15.6569 6.54117L15 6.222V4C15 2.89543 14.1046 2 13 2H11C9.89543 2 9 2.89543 9 4V6.222L8.34315 6.54117C6.20188 7.73713 5 10.0328 5 12.643V19H7L8 20H16L17 19H19Z"></path></svg>
+                <span>Alerts</span>
+            </div>
+            <div class="nav-item" id="nav-profile">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C17.52 2 22 6.48 22 12C22 17.52 17.52 22 12 22C6.48 22 2 17.52 2 12C2 6.48 6.48 2 12 2ZM12 4C10.6739 4 9.40215 4.52678 8.46447 5.46447C7.52678 6.40215 7 7.67392 7 9C7 10.3261 7.52678 11.5979 8.46447 12.5355C9.40215 13.4732 10.6739 14 12 14C13.3261 14 14.5979 13.4732 15.5355 12.5355C16.4732 11.5979 17 10.3261 17 9C17 7.67392 16.4732 6.40215 15.5355 5.46447C14.5979 4.52678 13.3261 4 12 4ZM12 16C9.33 16 4 17.34 4 20V20.4C4.0535 20.7208 4.3323 20.9631 4.653 20.92C7.03058 20.6186 9.48834 20.468 12 20.468C14.5117 20.468 16.9694 20.6186 19.347 20.92C19.6677 20.9631 19.9465 20.7208 20 20.4V20C20 17.34 14.67 16 12 16Z"></path></svg>
+                <span>Profile</span>
+            </div>
+        </nav>
+    </div>
+
+    <!-- Alert Modal -->
+    <div id="alertModal" class="alert-modal">
+        <div class="alert-content">
+            <h3 id="alertTitle">Emergency Alert</h3>
+            <p id="alertMessage">Your distress signal has been sent to emergency contacts and local authorities.</p>
+            <button id="closeAlert" class="alert-button">Okay</button>
+        </div>
+    </div>
+
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- NEW: Choice Screen Logic ---
+            const choiceContainer = document.getElementById('choiceContainer');
+            const appContainer = document.getElementById('appContainer');
+            const useWebAppBtn = document.getElementById('useWebAppBtn');
+
+            useWebAppBtn.addEventListener('click', () => {
+                choiceContainer.classList.add('hidden');
+                appContainer.classList.remove('hidden');
+            });
+
+            // --- Safety Score Animation ---
+            const progressBar = document.getElementById('progressBar');
+            const scoreValueEl = document.getElementById('scoreValue');
+            const score = parseInt(scoreValueEl.textContent);
+            const circumference = 472; // 2 * PI * 75
+            const offset = circumference - (score / 100) * circumference;
+            
+            // Trigger animation after a short delay
+            setTimeout(() => {
+                progressBar.style.strokeDashoffset = offset;
+            }, 500);
+
+
+            // --- SOS Button Logic ---
+            const sosButton = document.getElementById('sosButton');
+            const alertModal = document.getElementById('alertModal');
+            const closeAlert = document.getElementById('closeAlert');
+            const alertTitle = document.getElementById('alertTitle');
+            const alertMessage = document.getElementById('alertMessage');
+            let pressTimer;
+
+            sosButton.addEventListener('mousedown', () => {
+                sosButton.classList.add('holding');
+                pressTimer = setTimeout(() => {
+                    alertTitle.textContent = "Distress Signal Sent";
+                    alertMessage.textContent = "Your location and profile have been shared with local authorities and your emergency contacts.";
+                    alertModal.style.display = 'flex';
+                }, 2000); // Hold for 2 seconds
+            });
+
+            sosButton.addEventListener('mouseup', () => {
+                clearTimeout(pressTimer);
+                sosButton.classList.remove('holding');
+            });
+
+            sosButton.addEventListener('mouseleave', () => {
+                clearTimeout(pressTimer);
+                sosButton.classList.remove('holding');
+            });
+            
+            // Also for touch devices
+            sosButton.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                sosButton.dispatchEvent(new Event('mousedown'));
+            });
+            sosButton.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                sosButton.dispatchEvent(new Event('mouseup'));
+            });
+
+            closeAlert.addEventListener('click', () => {
+                alertModal.style.display = 'none';
+            });
+
+
+            // --- Geo-Fence Toggle Logic ---
+            const geoFenceToggle = document.getElementById('geoFenceToggle');
+            const geoFenceStatus = document.getElementById('geoFenceStatus');
+
+            geoFenceToggle.addEventListener('change', () => {
+                if (geoFenceToggle.checked) {
+                    geoFenceStatus.textContent = 'Enabled - Inside Safe Zone';
+                } else {
+                    geoFenceStatus.textContent = 'Disabled';
+                }
+            });
+
+
+            // --- Bottom Navigation Simulation ---
+            const navItems = document.querySelectorAll('.nav-item');
+            navItems.forEach(item => {
+                item.addEventListener('click', () => {
+                    navItems.forEach(nav => nav.classList.remove('active'));
+                    item.classList.add('active');
+                });
+            });
+
+        });
+    </script>
+</body>
+</html>
+

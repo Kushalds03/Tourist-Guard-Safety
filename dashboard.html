@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Command Dashboard - TouristGuard</title>
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <style>
+        /* --- Universal Setup & Fonts --- */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+        
+        :root {
+            --primary-blue: #217cfd;
+            --background-dark: #1a1d27;
+            --card-dark: #242836;
+            --border-dark: #3a414f;
+            --text-primary: #ffffff;
+            --text-secondary: #adb5bd;
+            --safe-green: #25c76e;
+            --warning-orange: #ffb047;
+            --critical-red: #ff4d4d;
+            --fir-gray: #777;
+            --map-background-fallback: #2c313a; /* A dark blue-gray to match the theme */
+        }
+
+        body {
+            margin: 0;
+            font-family: 'Inter', sans-serif;
+            background-color: var(--background-dark);
+            color: var(--text-primary);
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            overflow: hidden;
+        }
+
+        /* --- Main Layout --- */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 1fr 380px;
+            grid-template-rows: auto 1fr auto;
+            height: 100vh;
+            width: 100%;
+            grid-template-areas:
+                "header header"
+                "main sidebar"
+                "footer footer";
+        }
+
+        /* --- Header --- */
+        .dashboard-header {
+            grid-area: header;
+            background-color: var(--card-dark);
+            border-bottom: 1px solid var(--border-dark);
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .logo { display: flex; align-items: center; gap: 12px; }
+        .logo svg { width: 32px; height: 32px; fill: var(--primary-blue); }
+        .logo h1 { font-size: 1.5rem; margin: 0; }
+        
+        .stats-container { display: flex; gap: 40px; }
+        .stat-item { text-align: right; }
+        .stat-value { font-size: 1.6rem; font-weight: 700; }
+        .stat-label { font-size: 0.9rem; color: var(--text-secondary); }
+
+        /* --- Main Content (Map Area) --- */
+        .main-content {
+            grid-area: main;
+            position: relative;
+            background-color: var(--map-background-fallback);
+        }
+        #mapContainer {
+            width: 100%;
+            height: 100%;
+            background-color: transparent;
+        }
+        
+        /* --- Custom Marker Styles --- */
+        .marker-icon {
+            border: 2px solid white;
+            border-radius: 50%;
+            box-shadow: 0 0 10px rgba(0,0,0,0.5);
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .marker-icon:hover {
+            transform: scale(1.3);
+        }
+        .marker-icon-normal { background-color: var(--safe-green); }
+        .marker-icon-warning { background-color: var(--warning-orange); }
+        .marker-icon-critical { 
+            background-color: var(--critical-red); 
+            animation: pulse 1.5s infinite; 
+        }
+        .marker-icon-fir {
+            background-color: var(--fir-gray);
+        }
+        
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(255, 77, 77, 0.7); }
+            70% { box-shadow: 0 0 0 15px rgba(255, 77, 77, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(255, 77, 77, 0); }
+        }
+        
+        /* --- Sidebar (Tourist Info) --- */
+        .sidebar {
+            grid-area: sidebar;
+            background-color: var(--card-dark);
+            border-left: 1px solid var(--border-dark);
+            padding: 25px;
+            overflow-y: auto;
+        }
+        .sidebar-placeholder {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            text-align: center;
+            color: var(--text-secondary);
+        }
+        .sidebar-placeholder svg { width: 60px; height: 60px; margin-bottom: 20px; }
+        
+        .tourist-details.hidden { display: none; }
+        
+        .profile-header { text-align: center; margin-bottom: 20px; }
+        .profile-avatar { width: 100px; height: 100px; border-radius: 50%; border: 4px solid var(--safe-green); object-fit: cover; }
+        .profile-header.status-warning .profile-avatar { border-color: var(--warning-orange); }
+        .profile-header.status-critical .profile-avatar { border-color: var(--critical-red); }
+        .profile-header.status-fir .profile-avatar { border-color: var(--fir-gray); }
+
+        .profile-name { font-size: 1.4rem; font-weight: 700; margin: 10px 0 5px; }
+        .profile-id { color: var(--text-secondary); }
+
+        .details-section { margin-bottom: 20px; }
+        .details-section h3 {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid var(--border-dark);
+            padding-bottom: 8px;
+            margin: 0 0 15px 0;
+        }
+        .detail-item { display: flex; justify-content: space-between; margin-bottom: 10px; }
+        .detail-item .label { color: var(--text-secondary); }
+        .detail-item .value { font-weight: 500; }
+        
+        .status-badge {
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+        .status-badge.status-normal { background-color: var(--safe-green); }
+        .status-badge.status-warning { background-color: var(--warning-orange); }
+        .status-badge.status-critical { background-color: var(--critical-red); }
+        .status-badge.status-fir { background-color: var(--fir-gray); }
+
+        .efir-button {
+            width: 100%;
+            padding: 15px;
+            border-radius: 8px;
+            background-color: var(--critical-red);
+            color: white;
+            border: none;
+            font-size: 1.1rem;
+            font-weight: 700;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: background-color 0.2s;
+        }
+        .efir-button:hover { background-color: #d94444; }
+
+        /* --- Footer (Alert Ticker) --- */
+        .dashboard-footer {
+            grid-area: footer;
+            background-color: var(--critical-red);
+            padding: 12px;
+            overflow: hidden;
+            white-space: nowrap;
+        }
+        .ticker-wrap {
+            display: inline-block;
+            padding-left: 100%;
+            animation: ticker 45s linear infinite;
+        }
+        .ticker-item {
+            display: inline-block;
+            padding: 0 2rem;
+            font-weight: 600;
+        }
+        @keyframes ticker {
+            0% { transform: translate3d(0, 0, 0); }
+            100% { transform: translate3d(-100%, 0, 0); }
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-grid">
+        <header class="dashboard-header">
+            <div class="logo">
+                <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93s3.05-7.44 7-7.93v15.86zm2-15.86c1.03.13 2 .45 2.87.93L15 6.27A9.04 9.04 0 0 0 13 4.07v.01zM15.9 10c.03-.33.05-.66.05-1s-.02-.67-.05-1l2.1-.53c.18.64.25 1.31.25 2s-.07 1.36-.25 2l-2.1-.53zM13 19.93c3.95-.49 7-3.85 7-7.93s-3.05-7.44-7-7.93v15.86z"></path></svg>
+                <h1>TouristGuard</h1>
+            </div>
+            <div class="stats-container">
+                <div class="stat-item">
+                    <div id="totalTouristsStat" class="stat-value">0</div>
+                    <div class="stat-label">Active Tourists</div>
+                </div>
+                <div class="stat-item">
+                    <div id="alertsStat" class="stat-value">0</div>
+                    <div class="stat-label">Unresolved Alerts</div>
+                </div>
+            </div>
+        </header>
+
+        <main class="main-content">
+            <div id="mapContainer"></div>
+        </main>
+
+        <aside class="sidebar" id="sidebar">
+            <div id="sidebarPlaceholder" class="sidebar-placeholder">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C15.866 2 19 5.13401 19 9C19 14.25 12 22 12 22C12 22 5 14.25 5 9C5 5.13401 8.13401 2 12 2ZM12 11.5C13.3807 11.5 14.5 10.3807 14.5 9C14.5 7.61929 13.3807 6.5 12 6.5C10.6193 6.5 9.5 7.61929 9.5 9C9.5 10.3807 10.6193 11.5 12 11.5Z"></path></svg>
+                <h2>No Tourist Selected</h2>
+                <p>Click a marker on the map to view details.</p>
+            </div>
+
+            <div id="touristDetails" class="tourist-details hidden">
+                <div id="profileHeader" class="profile-header">
+                    <img id="profileAvatar" src="" alt="Tourist Avatar" class="profile-avatar">
+                    <h2 id="profileName" class="profile-name"></h2>
+                    <p id="profileId" class="profile-id"></p>
+                </div>
+                <div class="details-section">
+                    <h3>Status & Location</h3>
+                    <div class="detail-item">
+                        <span class="label">Current Status</span>
+                        <span id="profileStatus" class="value status-badge"></span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">Location</span>
+                        <span id="profileLocation" class="value"></span>
+                    </div>
+                </div>
+                <div class="details-section">
+                    <h3>Itinerary</h3>
+                    <div class="detail-item">
+                        <span class="label">Next Stop</span>
+                        <span id="profileNextStop" class="value"></span>
+                    </div>
+                     <div class="detail-item">
+                        <span class="label">Hotel</span>
+                        <span id="profileHotel" class="value"></span>
+                    </div>
+                </div>
+                <div id="efirContainer"></div>
+            </div>
+        </aside>
+
+        <footer class="dashboard-footer">
+            <div class="ticker-wrap">
+                <div id="ticker" class="ticker-item">
+                    *** SYSTEM OPERATIONAL | NO CRITICAL ALERTS ***
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // --- DOM Element References ---
+        const sidebarPlaceholder = document.getElementById('sidebarPlaceholder');
+        const touristDetails = document.getElementById('touristDetails');
+        const ticker = document.getElementById('ticker');
+        const totalTouristsStat = document.getElementById('totalTouristsStat');
+        const alertsStat = document.getElementById('alertsStat');
+        
+        // --- Data ---
+        const tourists = [
+            { id: 'T001', name: 'John Doe', avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=100&auto=format&fit=crop', status: 'normal', location: 'Koramangala', nextStop: 'Lalbagh', hotel: 'Grand Mercure', latlng: [12.9352, 77.6245] },
+            { id: 'T002', name: 'Maria Garcia', avatar: 'https://images.unsplash.com/photo-1554151228-14d9def656e4?q=80&w=100&auto=format&fit=crop', status: 'normal', location: 'Indiranagar', nextStop: 'UB City', hotel: 'The Leela Palace', latlng: [12.9784, 77.6400] },
+            { id: 'T003', name: 'Priya Sharma', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b2917e?q=80&w=100&auto=format&fit=crop', status: 'warning', location: 'Majestic', nextStop: 'Vidhana Soudha', hotel: 'Citadel Hotel', latlng: [12.9767, 77.5713] },
+            { id: 'T004', name: 'Ken Watanabe', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=100&auto=format&fit=crop', status: 'normal', location: 'Whitefield', nextStop: 'Phoenix Marketcity', hotel: 'Marriott', latlng: [12.9698, 77.7499] },
+            { id: 'T005', name: 'David Chen', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=100&auto=format&fit=crop', status: 'critical', location: 'Hebbal', nextStop: 'Airport', hotel: 'Taj Yeshwantpur', latlng: [13.0358, 77.5969] },
+            { id: 'T006', name: 'Liam Murphy', avatar: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?q=80&w=100&auto=format&fit=crop', status: 'normal', location: 'Jayanagar', nextStop: 'Lalbagh', hotel: 'Hotel Southern Star', latlng: [12.9253, 77.5808] },
+            { id: 'T007', name: 'Chloe Dubois', avatar: 'https://images.unsplash.com/photo-1491349174775-aaafddd81942?q=80&w=100&auto=format&fit=crop', status: 'warning', location: 'MG Road', nextStop: 'Commercial Street', hotel: 'The Oberoi', latlng: [12.9759, 77.6044] },
+            { id: 'T008', name: 'Fatima Al-Jamil', avatar: 'https://images.unsplash.com/photo-1552058544-f2b08422138a?q=80&w=100&auto=format&fit=crop', status: 'normal', location: 'Cubbon Park', nextStop: 'Vidhana Soudha', hotel: 'ITC Gardenia', latlng: [12.9757, 77.5929] },
+            { id: 'T009', name: 'Alex Johnson', avatar: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?q=80&w=100&auto=format&fit=crop', status: 'critical', location: 'Electronic City', nextStop: 'Koramangala', hotel: 'Lemon Tree Hotel', latlng: [12.8452, 77.6602] },
+            { id: 'T010', name: 'Isabella Rossi', avatar: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?q=80&w=100&auto=format&fit=crop', status: 'normal', location: 'Bannerghatta', nextStop: 'Jayanagar', hotel: 'A homestay', latlng: [12.8016, 77.5774] },
+            { id: 'T011', name: 'Omar Bakshi', avatar: 'https://images.unsplash.com/photo-1599566150163-29194dcaad36?q=80&w=100&auto=format&fit=crop', status: 'normal', location: 'Bangalore Palace', nextStop: 'Indiranagar', hotel: 'The Park Bangalore', latlng: [12.9988, 77.5921] },
+        ];
+        
+        let touristMarkers = {};
+
+        // --- Initialize Leaflet Map ---
+        // CORRECTED: Re-enabled map interactions so setView() works correctly.
+        const map = L.map('mapContainer', { 
+            zoomControl: false,
+        }).setView([12.9716, 77.5946], 12);
+
+        // --- Core Functions ---
+
+        function createCustomIcon(status) {
+            let className = 'marker-icon';
+            let iconSize = [14, 14];
+
+            if (status === 'warning') {
+                className += ' marker-icon-warning';
+                iconSize = [16, 16];
+            } else if (status === 'critical') {
+                className += ' marker-icon-critical';
+                iconSize = [18, 18];
+            } else if (status === 'fir') {
+                className += ' marker-icon-fir';
+                iconSize = [16, 16];
+            } else {
+                className += ' marker-icon-normal';
+            }
+
+            return L.divIcon({
+                className: className,
+                iconSize: iconSize,
+                iconAnchor: [iconSize[0] / 2, iconSize[1] / 2]
+            });
+        }
+        
+        function initializeDashboard() {
+            tourists.forEach(tourist => {
+                const marker = L.marker(tourist.latlng, {
+                    icon: createCustomIcon(tourist.status)
+                }).addTo(map);
+                
+                marker.on('click', () => showTouristDetails(tourist.id));
+                touristMarkers[tourist.id] = marker;
+            });
+            updateStats();
+            updateTicker();
+        }
+        
+        function showTouristDetails(id) {
+            const tourist = tourists.find(t => t.id === id);
+            if (!tourist) return;
+
+            map.setView(tourist.latlng, 14); // This will now correctly "slide" the view
+
+            sidebarPlaceholder.classList.add('hidden');
+            touristDetails.classList.remove('hidden');
+            
+            document.getElementById('profileHeader').className = `profile-header status-${tourist.status}`;
+            document.getElementById('profileAvatar').src = tourist.avatar;
+            document.getElementById('profileName').textContent = tourist.name;
+            document.getElementById('profileId').textContent = `ID: ${tourist.id}`;
+            
+            const statusBadge = document.getElementById('profileStatus');
+            statusBadge.textContent = tourist.status.toUpperCase();
+            statusBadge.className = `value status-badge status-${tourist.status}`;
+
+            document.getElementById('profileLocation').textContent = tourist.location;
+            document.getElementById('profileNextStop').textContent = tourist.nextStop;
+            document.getElementById('profileHotel').textContent = tourist.hotel;
+
+            const efirContainer = document.getElementById('efirContainer');
+            if (tourist.status === 'critical') {
+                efirContainer.innerHTML = `<button id="efirBtn" class="efir-button">Generate E-FIR</button>`;
+                document.getElementById('efirBtn').addEventListener('click', () => generateEFIR(id));
+            } else if (tourist.status === 'fir') {
+                efirContainer.innerHTML = `<p style="text-align:center; color: var(--safe-green);">E-FIR successfully generated.</p>`;
+            } else {
+                efirContainer.innerHTML = '';
+            }
+        }
+
+        function generateEFIR(id) {
+            const tourist = tourists.find(t => t.id === id);
+            if (!tourist || tourist.status !== 'critical') return;
+
+            tourist.status = 'fir';
+            
+            showTouristDetails(id);
+
+            const marker = touristMarkers[id];
+            if (marker) {
+                 marker.setIcon(createCustomIcon('fir'));
+            }
+
+            updateStats();
+            updateTicker();
+        }
+
+        function updateStats() {
+            totalTouristsStat.textContent = tourists.length;
+            const alertCount = tourists.filter(t => t.status === 'warning' || t.status === 'critical').length;
+            alertsStat.textContent = alertCount;
+            alertsStat.style.color = alertCount > 0 ? 'var(--warning-orange)' : 'var(--text-primary)';
+        }
+
+        function updateTicker() {
+            const activeAlerts = tourists.filter(t => t.status === 'warning' || t.status === 'critical');
+            if (activeAlerts.length > 0) {
+                let tickerText = '';
+                activeAlerts.forEach(alert => {
+                    tickerText += `*** ALERT: Tourist ${alert.id} (${alert.name}) has a ${alert.status.toUpperCase()} status in ${alert.location} *** `;
+                });
+                ticker.innerHTML = tickerText;
+                document.querySelector('.dashboard-footer').style.backgroundColor = 'var(--critical-red)';
+
+            } else {
+                 ticker.innerHTML = '*** SYSTEM OPERATIONAL | NO UNRESOLVED ALERTS ***';
+                 document.querySelector('.dashboard-footer').style.backgroundColor = 'var(--safe-green)';
+            }
+        }
+
+        // --- Start the Application ---
+        initializeDashboard();
+    });
+    </script>
+</body>
+</html>
